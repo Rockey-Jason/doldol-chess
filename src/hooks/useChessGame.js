@@ -481,8 +481,6 @@ if(msg.startsWith("bestmove")){
         // 봇의 실제 수
         if (!msg.startsWith("bestmove")) return;
 
-        const engineMove = msg.split(" ")[1];
-
 const engineMove = msg.split(" ")[1];
 
 const result = chooseMove(
