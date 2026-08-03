@@ -18,7 +18,7 @@ function Piece({
 
             className="piece"
 
-            src={`/pieces/${piece}.png`}
+            src={`${import.meta.env.BASE_URL}pieces/${piece}.png`}
 
             alt={piece}
 
