@@ -1,16 +1,12 @@
-import { HashRouter } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
+import Chess from "./pages/Chess.jsx";
+import Login from "./pages/Login.jsx";
 
-import Login from "./pages/Login";
-import Chess from "./pages/Chess";
-
-export default function App(){
-
-    return(
-        
-<HashRouter>
-  <App />
-</HashRouter>
-
-    );
-
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Chess />} />
+      <Route path="/login" element={<Login />} />
+    </Routes>
+  );
 }
