@@ -388,7 +388,7 @@ ${animation.animate
 
 <img
 
-src={`/pieces/${animation.piece}.png`}
+src={`${import.meta.env.BASE_URL}pieces/${animation.piece}.png`}
 
 className="movingPieceImg"
 
@@ -410,7 +410,7 @@ className="movingPieceImg"
 
     <img
         key={i}
-        src={`/pieces/${p}.png`}
+        src={`${import.meta.env.BASE_URL}pieces/${p}.png`}
         className="capturedPiece"
     />
 
