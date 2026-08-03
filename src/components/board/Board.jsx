@@ -319,7 +319,7 @@ const sortedCapturedWhite = [...capturedWhite].sort(
 
     <img
         key={i}
-        src={`/pieces/${p}.png`}
+        src={`${import.meta.env.BASE_URL}pieces/${piece}.png`}
         className="capturedPiece"
     />
 
@@ -483,22 +483,22 @@ promotionData && (
     <div className="promotionMenu">
 
         <img
-            src={`/pieces/${turn}Q.png`}
+            src={`${import.meta.env.BASE_URL}pieces/${turn}Q.png`}
             onClick={() => choosePromotion("q")}
         />
 
         <img
-            src={`/pieces/${turn}R.png`}
+            src={`${import.meta.env.BASE_URL}pieces/${turn}R.png`}
             onClick={() => choosePromotion("r")}
         />
 
         <img
-            src={`/pieces/${turn}B.png`}
+            src={`${import.meta.env.BASE_URL}pieces/${turn}B.png`}
             onClick={() => choosePromotion("b")}
         />
 
         <img
-            src={`/pieces/${turn}N.png`}
+            src={`${import.meta.env.BASE_URL}pieces/${turn}N.png`}
             onClick={() => choosePromotion("n")}
         />
 
