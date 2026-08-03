@@ -319,7 +319,7 @@ const sortedCapturedWhite = [...capturedWhite].sort(
 
     <img
         key={i}
-        src={`${import.meta.env.BASE_URL}pieces/${piece}.png`}
+        src={`${import.meta.env.BASE_URL}pieces/${p}.png`}
         className="capturedPiece"
     />
 
