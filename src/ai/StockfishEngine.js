@@ -2,7 +2,9 @@ class StockfishEngine {
 
     constructor(){
 
-        this.engine = new Worker("/stockfish/stockfish-18-lite-single.js");
+        this.engine = new Worker(
+    `${import.meta.env.BASE_URL}stockfish/stockfish-18-lite-single.js`
+);
 
         this.ready = false;
 

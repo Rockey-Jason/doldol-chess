@@ -465,6 +465,11 @@ useEffect(() => {
 
 }
 
+if(msg.startsWith("bestmove")){
+    console.log("BESTMOVE:", msg);
+    console.log("CANDIDATES:", getCandidates());
+}
+
         // 플레이어 수 분석용 bestmove 수신
         if (analysisMode.current && msg.startsWith("bestmove")) {
             playerCandidatesRef.current = getCandidates();
@@ -476,7 +481,14 @@ useEffect(() => {
         // 봇의 실제 수
         if (!msg.startsWith("bestmove")) return;
 
-        const result = chooseMove(currentBot);
+        const engineMove = msg.split(" ")[1];
+
+const engineMove = msg.split(" ")[1];
+
+const result = chooseMove(
+    currentBot,
+    engineMove
+);
 
         clearCandidates();
 

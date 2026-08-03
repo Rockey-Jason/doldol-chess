@@ -3,33 +3,27 @@ import difficulty from "./difficulty";
 
 let candidateMoves = [];
 
-export function parseEngineLine(line) {
-    if (typeof line !== "string") return;
-    if (!line.startsWith("info")) return;
-    if (!line.includes(" pv ")) return;
+export function parseEngineLine(line){
 
-    const multipvMatch = line.match(/\bmultipv\s+(\d+)/);
-    const pvMatch = line.match(/\bpv\s+([a-h][1-8][a-h][1-8][qrbn]?)/);
+    if(!line.startsWith("info")) return;
 
-    if (!multipvMatch || !pvMatch) return;
+    const multi =
+        line.match(/multipv (\d+)/);
 
-    const mateMatch = line.match(/\bscore\s+mate\s+(-?\d+)/);
-    const cpMatch = line.match(/\bscore\s+cp\s+(-?\d+)/);
+    const pv =
+        line.match(/ pv ([a-h][1-8][a-h][1-8][qrbn]?)/);
 
-    let score = 0;
-    if (mateMatch) {
-        score = Number(mateMatch[1]) > 0 ? 99999 : -99999;
-    } else if (cpMatch) {
-        score = Number(cpMatch[1]);
-    }
+    if(!multi || !pv) return;
 
-    const multipv = Number(multipvMatch[1]);
-    const move = pvMatch[1];
 
-    candidateMoves[multipv - 1] = {
-        move,
-        score,
-        multipv
+    const cp =
+        line.match(/score cp (-?\d+)/);
+
+
+    candidateMoves[Number(multi[1])-1]={
+        move:pv[1],
+        score:cp ? Number(cp[1]) : 0,
+        multipv:Number(multi[1])
     };
 }
 
