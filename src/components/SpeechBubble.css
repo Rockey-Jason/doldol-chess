@@ -1,0 +1,93 @@
+.speechBubble{
+
+    position:absolute;
+
+    top:20px;
+
+    left:50%;
+
+    transform:translateX(-50%) scale(1);
+
+    transform-origin:center top;
+
+    background:white;
+
+    color:black;
+
+    padding:16px;
+
+    border-radius:18px;
+
+    box-sizing:border-box;
+
+    min-height:80px;
+
+    text-align:left;
+
+    font-family:Jua,sans-serif;
+
+    font-size:15px;
+
+    white-space:pre-wrap;
+
+    word-break:break-word;
+
+    overflow-wrap:break-word;
+
+    opacity:1;
+
+    box-shadow:0 10px 25px rgba(0,0,0,.25);
+
+    animation:bubbleShow .35s cubic-bezier(.2,.9,.25,1);
+
+    transition:
+        opacity .35s ease,
+        transform .35s ease,
+        filter .35s ease;
+
+}
+.speechBubble.hide{
+
+    opacity:0;
+
+transition:
+    opacity .28s ease-in,
+    transform .28s cubic-bezier(.55,.05,.8,.25),
+    filter .28s ease-in;
+
+    pointer-events:none;
+
+}
+@keyframes bubbleShow{
+
+0%{
+
+opacity:0;
+
+transform:translateX(-50%) translateY(-25px) scale(.6);
+
+filter:blur(4px);
+
+}
+
+70%{
+
+opacity:1;
+
+transform:translateX(-50%) translateY(3px) scale(1.05);
+
+filter:blur(0);
+
+}
+
+100%{
+
+opacity:1;
+
+transform:translateX(-50%) translateY(0) scale(1);
+
+filter:blur(0);
+
+}
+
+}
