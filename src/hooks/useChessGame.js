@@ -160,6 +160,7 @@ const [gameSummary, setGameSummary] = useState({
     const lastDialog = useRef("");
     const analysisMode = useRef(false);
 const playerCandidatesRef = useRef([]);
+const playerAnalysisReady = useRef(false);
 
     //--------------------------
     // Engine
@@ -500,6 +501,7 @@ function startPlayerAnalysis() {
     clearCandidates();
 
     playerCandidatesRef.current = [];
+    playerAnalysisReady.current = false;
 
     analysisMode.current = true;
 
@@ -638,22 +640,30 @@ useEffect(() => {
         // 플레이어 수 분석용
         // --------------------------------
 
-        if (analysisMode.current) {
+if (analysisMode.current) {
 
-            playerCandidatesRef.current =
-                [...candidates];
+    playerCandidatesRef.current =
+        [...candidates];
 
-            console.log(
-                "♟ 플레이어 후보수 저장:",
-                playerCandidatesRef.current
-            );
+    console.log(
+        "♟ 플레이어 후보수 저장:",
+        playerCandidatesRef.current
+    );
 
-            clearCandidates();
+    playerAnalysisReady.current =
+        playerCandidatesRef.current.length > 0;
 
-            analysisMode.current = false;
+    console.log(
+        "♟ 플레이어 분석 완료:",
+        playerAnalysisReady.current
+    );
 
-            return;
-        }
+    clearCandidates();
+
+    analysisMode.current = false;
+
+    return;
+}
 
 
         // --------------------------------
@@ -747,6 +757,16 @@ function playAnimatedMove(
     isPlayer=true,
     quality="Best"
 ){
+
+        // 플레이어 수는 Stockfish 분석이 끝난 뒤에만 진행
+    if (isPlayer && !playerAnalysisReady.current) {
+
+        console.log(
+            "⏳ 플레이어 분석 대기 중..."
+        );
+
+        return false;
+    }
 
     const legal = game.moves({
         verbose:true
