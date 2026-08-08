@@ -216,20 +216,56 @@ function createPGN(result){
 
     const bot = botData[currentBot];
 
-    game.header(
-        "Event", "Doldol Chess",
-        "Site", "Doldol Site",
-        "Date", gameStartDate.current,
-        "Round", "1",
-        "White", "Player",
-        "Black", bot?.name || currentBot,
-        "Result", result,
-        "Difficulty", `Lv.${bot?.level ?? 1}`
-    );
+const headers = createGameHeaders(result);
+
+game.header(headers);
 
     return game.pgn({
         newline: "\n"
     });
+
+}
+
+//--------------------------------
+// PGN / Game Summary 공통 헤더
+//--------------------------------
+
+function createGameHeaders(result = "*") {
+
+    const bot = botData[currentBot];
+
+    const now = new Date();
+
+    const date =
+        now.toISOString()
+        .slice(0, 10)
+        .replaceAll("-", ".");
+
+    return {
+
+        Event: "Doldol Chess",
+
+        Site: "Doldol Site",
+
+        Date: date,
+
+        Round: "1",
+
+        White: "Player",
+
+        Black: bot?.name || currentBot,
+
+        Result: result,
+
+        Difficulty: `Lv.${bot?.level ?? 1}`,
+
+        PlayerRating: String(rating),
+
+        BotRating: String(
+            botRating[currentBot] ?? 0
+        )
+
+    };
 
 }
 
@@ -253,65 +289,48 @@ function buildGameSummary(result) {
 
     const pgn = createPGN(result);
 
-    const summary = {
+const headers = createGameHeaders(result);
 
-        event: "Doldol Chess",
+const summary = {
 
-        site: "Doldol Site",
+    ...headers,
 
-        date: gameStartDate.current,
+    event: headers.Event,
+    site: headers.Site,
+    date: headers.Date,
+    round: headers.Round,
+    white: headers.White,
+    black: headers.Black,
+    difficulty: headers.Difficulty,
+    result: headers.Result,
 
-        round: "1",
+    playerRating:
+        Number(headers.PlayerRating),
 
-        white: "Player",
+    botRating:
+        Number(headers.BotRating),
 
-        black: bot?.name || currentBot,
+    playTime:
+        `${minutes}:${String(remain).padStart(2,"0")}`,
 
-        difficulty:
-            `Lv.${bot?.level ?? 1}`,
+    accuracy:100,
 
-        result,
+    brilliant:moveStats.brilliant,
+    great:moveStats.great,
+    best:moveStats.best,
+    excellent:moveStats.excellent,
+    good:moveStats.good,
+    inaccuracy:moveStats.inaccuracy,
+    mistake:moveStats.mistake,
+    blunder:moveStats.blunder,
 
-        playerRating: rating,
+    totalMoves:
+        Math.ceil(game.history().length / 2),
 
-        botRating:
-            botRating[currentBot] ?? 0,
+    pgn:
+        game.pgn()
 
-        playTime:
-            `${minutes}:${String(remain).padStart(2, "0")}`,
-
-        accuracy: 100,
-
-        brilliant:
-            moveStatsRef.current.brilliant,
-
-        great:
-            moveStatsRef.current.great,
-
-        best:
-            moveStatsRef.current.best,
-
-        excellent:
-            moveStatsRef.current.excellent,
-
-        good:
-            moveStatsRef.current.good,
-
-        inaccuracy:
-            moveStatsRef.current.inaccuracy,
-
-        mistake:
-            moveStatsRef.current.mistake,
-
-        blunder:
-            moveStatsRef.current.blunder,
-
-        totalMoves:
-            game.history().length,
-
-        pgn
-
-    };
+};
 
     setGameSummary(summary);
 
