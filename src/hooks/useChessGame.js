@@ -60,6 +60,18 @@ const [moveStats, setMoveStats] = useState({
     blunder:0
 
 });
+
+const moveStatsRef = useRef({
+    brilliant: 0,
+    great: 0,
+    best: 0,
+    excellent: 0,
+    good: 0,
+    inaccuracy: 0,
+    mistake: 0,
+    blunder: 0
+});
+
 const gameStartTime = useRef(Date.now());
 const gameStartDate = useRef(
     new Date()
@@ -67,33 +79,51 @@ const gameStartDate = useRef(
         .slice(0, 10)
         .replaceAll("-", ".")
 );
-const [gameSummary,setGameSummary] = useState({
+const [gameSummary, setGameSummary] = useState({
 
-    date:"",
-    botName:"",
-    botLevel:1,
+    event: "Doldol Chess",
 
-    result:"*",
+    site: "Doldol Site",
 
-    playerRating:0,
-    botRating:0,
+    date: "",
 
-    playTime:"00:00",
+    round: "1",
 
-    accuracy:100,
+    white: "Player",
 
-    brilliant:0,
-    great:0,
-    best:0,
-    excellent:0,
-    good:0,
-    inaccuracy:0,
-    mistake:0,
-    blunder:0,
+    black: "",
 
-    totalMoves:0,
+    difficulty: "",
 
-    pgn:""
+    result: "*",
+
+    playerRating: 0,
+
+    botRating: 0,
+
+    playTime: "00:00",
+
+    accuracy: 100,
+
+    brilliant: 0,
+
+    great: 0,
+
+    best: 0,
+
+    excellent: 0,
+
+    good: 0,
+
+    inaccuracy: 0,
+
+    mistake: 0,
+
+    blunder: 0,
+
+    totalMoves: 0,
+
+    pgn: ""
 
 });
 
@@ -207,7 +237,7 @@ function createPGN(result){
 // Build Game Summary
 //--------------------------------
 
-function buildGameSummary(result){
+function buildGameSummary(result) {
 
     const end = Date.now();
 
@@ -221,54 +251,76 @@ function buildGameSummary(result){
 
     const bot = botData[currentBot];
 
-const summary = {
+    const pgn = createPGN(result);
 
-    event: "Doldol Chess",
+    const summary = {
 
-    site: "Doldol Site",
+        event: "Doldol Chess",
 
-    date: gameStartDate.current,
+        site: "Doldol Site",
 
-    white: "Player",
+        date: gameStartDate.current,
 
-    black: bot.name,
+        round: "1",
 
-    difficulty: `Lv.${bot.level}`,
+        white: "Player",
 
-    result,
+        black: bot?.name || currentBot,
 
-    playerRating: rating,
+        difficulty:
+            `Lv.${bot?.level ?? 1}`,
 
-    botRating:
-        botRating[currentBot] ?? 0,
+        result,
 
-    playTime:
-        `${minutes}:${String(remain).padStart(2, "0")}`,
+        playerRating: rating,
 
-    accuracy: 100,
+        botRating:
+            botRating[currentBot] ?? 0,
 
-    brilliant: moveStats.brilliant,
-    great: moveStats.great,
-    best: moveStats.best,
-    excellent: moveStats.excellent,
-    good: moveStats.good,
-    inaccuracy: moveStats.inaccuracy,
-    mistake: moveStats.mistake,
-    blunder: moveStats.blunder,
+        playTime:
+            `${minutes}:${String(remain).padStart(2, "0")}`,
 
-    totalMoves:
-        game.history().length,
+        accuracy: 100,
 
-    pgn:
-        createPGN(result)
+        brilliant:
+            moveStatsRef.current.brilliant,
 
-};
+        great:
+            moveStatsRef.current.great,
 
+        best:
+            moveStatsRef.current.best,
+
+        excellent:
+            moveStatsRef.current.excellent,
+
+        good:
+            moveStatsRef.current.good,
+
+        inaccuracy:
+            moveStatsRef.current.inaccuracy,
+
+        mistake:
+            moveStatsRef.current.mistake,
+
+        blunder:
+            moveStatsRef.current.blunder,
+
+        totalMoves:
+            game.history().length,
+
+        pgn
+
+    };
 
     setGameSummary(summary);
 
-    console.log(summary);
+    console.log(
+        "게임 최종 기록:",
+        summary
+    );
 
+    return summary;
 }
 
     //--------------------------
@@ -736,51 +788,52 @@ function finishMove(move,isPlayerMove=true,quality="Best"){
 // Statistics
 //--------------------------------
 
-if(isPlayerMove){
+if (isPlayerMove) {
 
-    setMoveStats(prev=>{
+    const next = {
+        ...moveStatsRef.current
+    };
 
-        const next={...prev};
+    switch (quality) {
 
-        switch(quality){
+        case "Brilliant":
+            next.brilliant++;
+            break;
 
-            case "Brilliant":
-                next.brilliant++;
-                break;
+        case "Great":
+            next.great++;
+            break;
 
-            case "Great":
-                next.great++;
-                break;
+        case "Best":
+            next.best++;
+            break;
 
-            case "Best":
-                next.best++;
-                break;
+        case "Excellent":
+            next.excellent++;
+            break;
 
-            case "Excellent":
-                next.excellent++;
-                break;
+        case "Good":
+            next.good++;
+            break;
 
-            case "Good":
-                next.good++;
-                break;
+        case "Inaccuracy":
+            next.inaccuracy++;
+            break;
 
-            case "Inaccuracy":
-                next.inaccuracy++;
-                break;
+        case "Mistake":
+            next.mistake++;
+            break;
 
-            case "Mistake":
-                next.mistake++;
-                break;
+        case "Blunder":
+            next.blunder++;
+            break;
+    }
 
-            case "Blunder":
-                next.blunder++;
-                break;
-        }
+    // 즉시 최신값 보관
+    moveStatsRef.current = next;
 
-        return next;
-
-    });
-
+    // 화면에도 반영
+    setMoveStats(next);
 }
     if (move.captured) {
         captureSound.currentTime = 0;
@@ -1165,6 +1218,26 @@ setMoveStats({
 
 });
 
+moveStatsRef.current = {
+
+    brilliant: 0,
+
+    great: 0,
+
+    best: 0,
+
+    excellent: 0,
+
+    good: 0,
+
+    inaccuracy: 0,
+
+    mistake: 0,
+
+    blunder: 0
+
+};
+
     say("starting");
 
 }
@@ -1224,6 +1297,26 @@ setMoveStats({
     blunder:0
 
 });
+
+moveStatsRef.current = {
+
+    brilliant: 0,
+
+    great: 0,
+
+    best: 0,
+
+    excellent: 0,
+
+    good: 0,
+
+    inaccuracy: 0,
+
+    mistake: 0,
+
+    blunder: 0
+
+};
 
     say("starting");
 
