@@ -494,7 +494,12 @@ function startPlayerAnalysis() {
 
     if (game.isGameOver()) return;
 
+    console.log("🔍 플레이어 분석 시작");
+    console.log("현재 FEN:", game.fen());
+
     clearCandidates();
+
+    playerCandidatesRef.current = [];
 
     analysisMode.current = true;
 
@@ -507,7 +512,7 @@ function startPlayerAnalysis() {
     );
 
     engine.current.send(
-        "go movetime 500"
+        "go movetime 250"
     );
 }
 
@@ -528,6 +533,35 @@ function startPlayerAnalysis() {
     if (key) say(key);
     else say("normal");
 }
+
+function sayPlayerMoveReaction(move) {
+
+    if (!move) {
+        return "Good";
+    }
+
+    const analyzed =
+        getPlayerMoveQuality(
+            move,
+            playerCandidatesRef.current
+        );
+
+    const quality =
+        analyzed?.quality || "Good";
+
+    console.log(
+        "♟ 플레이어 수 반응:",
+        analyzed
+    );
+
+    sayMoveType(
+        quality,
+        false
+    );
+
+    return quality;
+}
+
         //--------------------------
     // Engine Start
     //--------------------------
@@ -567,6 +601,17 @@ useEffect(() => {
 
             return;
         }
+
+        if (msg.startsWith("info")) {
+
+    parseEngineLine(msg);
+
+    console.log(
+        "🔎 후보:",
+        getCandidates()
+    );
+
+}
 
 
         // --------------------------------
@@ -713,6 +758,10 @@ function playAnimatedMove(
             m.promotion===promotion
         )
     );
+
+    if (isPlayer) {
+    startPlayerAnalysis();
+}
 
     if(!legal) return false;
 
