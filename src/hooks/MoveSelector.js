@@ -207,4 +207,4 @@ export function getPlayerMoveQuality(move, candidates) {
 
     };
 
-}
+} 
