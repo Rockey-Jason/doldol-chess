@@ -59,8 +59,6 @@ const [moveStats, setMoveStats] = useState({
 
     good:0,
 
-    miss: 0,
-
     inaccuracy:0,
 
     mistake:0,
@@ -162,6 +160,28 @@ const [gameSummary, setGameSummary] = useState({
 const playerCandidatesRef = useRef([]);
 const playerAnalysisReady = useRef(false);
 
+// ========================================
+// 플레이어 수 분석 상태
+// ========================================
+
+const playerAnalysisRef = useRef({
+
+    active: false,
+
+    beforeFen: null,
+
+    move: null,
+
+    bestScore: null,
+
+    bestMate: null,
+
+    playedScore: null,
+
+    playedMate: null
+
+});
+
     //--------------------------
     // Engine
     //--------------------------
@@ -219,6 +239,150 @@ function getThinkDelay(bot){
     doronum: 2000,
     brilliant: 2800
 };
+
+// ========================================
+// Stockfish 평가 → 플레이어 관점 CP
+// ========================================
+
+function scoreToPlayerCp(score, mate, playerColor) {
+
+    // mate가 있으면 매우 큰 값으로 변환
+    if (mate !== null && mate !== undefined) {
+
+        const mateScore =
+            mate > 0
+                ? 100000
+                : -100000;
+
+        return playerColor === "w"
+            ? mateScore
+            : -mateScore;
+
+    }
+
+
+    const cp =
+        Number(score ?? 0);
+
+
+    return playerColor === "w"
+        ? cp
+        : -cp;
+
+}
+
+// ========================================
+// 평가 손실 → Accuracy
+// ========================================
+
+function calculateMoveAccuracy(loss) {
+
+    if (
+        loss === null ||
+        loss === undefined ||
+        !Number.isFinite(loss)
+    ) {
+
+        return 0;
+
+    }
+
+
+    // 0 손실 = 100%
+    if (loss <= 0) {
+
+        return 100;
+
+    }
+
+
+    /*
+     * Stockfish centipawn loss를
+     * 인간이 이해하기 쉬운 Accuracy로 변환
+     *
+     * loss가 커질수록 정확도가 빠르게 감소
+     */
+
+    const accuracy =
+        100 *
+        Math.exp(
+            -loss / 180
+        );
+
+
+    return Math.max(
+        0,
+        Math.min(
+            100,
+            Number(accuracy.toFixed(1))
+        )
+    );
+
+}
+
+// ========================================
+// 전체 Accuracy
+// ========================================
+
+const playerMoveAccuraciesRef =
+    useRef([]);
+
+
+function resetPlayerAccuracies() {
+
+    playerMoveAccuraciesRef.current = [];
+
+}
+
+
+function addPlayerMoveAccuracy(
+    accuracy
+) {
+
+    if (
+        !Number.isFinite(accuracy)
+    ) {
+
+        return;
+
+    }
+
+    playerMoveAccuraciesRef.current.push(
+        accuracy
+    );
+
+}
+
+
+function getOverallAccuracy() {
+
+    const list =
+        playerMoveAccuraciesRef.current;
+
+
+    if (!list.length) {
+
+        return 100;
+
+    }
+
+
+    const total =
+        list.reduce(
+            (sum, value) =>
+                sum + value,
+            0
+        );
+
+
+    return Number(
+        (
+            total / list.length
+        ).toFixed(1)
+    );
+
+}
+
 
 //--------------------------------
 // Create PGN
@@ -319,9 +483,8 @@ function buildGameSummary(result) {
     const minutes = Math.floor(seconds / 60);
     const remain = seconds % 60;
 
-    const pgn = createPGN(result);
-
-    const headers = createGameHeaders(result);
+const headers = createGameHeaders(result);
+const pgn = createPGN(result);
 
     const stats = moveStatsRef.current;
 
@@ -347,7 +510,7 @@ function buildGameSummary(result) {
         playTime:
             `${minutes}:${String(remain).padStart(2, "0")}`,
 
-accuracy: 100,
+accuracy:getOverallAccuracy(),
 
 brilliant: stats.brilliant,
 great: stats.great,
@@ -961,19 +1124,41 @@ function finishMove(
 
     if (isPlayerMove) {
 
+        const candidates =
+            playerCandidatesRef.current || [];
+
+
         const analyzed =
             getPlayerMoveQuality(
                 move,
-                playerCandidatesRef.current
+                candidates
             );
 
-        quality =
-            analyzed.quality;
 
         console.log(
             "♟ 플레이어 분석:",
             analyzed
         );
+
+
+        if (
+            analyzed.quality &&
+            analyzed.quality !== "Unknown"
+        ) {
+
+            quality =
+                analyzed.quality;
+
+        } else {
+
+            quality = "Good";
+
+        }
+
+
+        //--------------------------------
+        // 후보 초기화
+        //--------------------------------
 
         playerCandidatesRef.current = [];
 
@@ -985,6 +1170,7 @@ function finishMove(
         const next = {
             ...moveStatsRef.current
         };
+
 
         switch (quality) {
 
@@ -1008,10 +1194,6 @@ function finishMove(
                 next.good++;
                 break;
 
-            case "Miss":
-                next.miss++;
-                break;
-
             case "Inaccuracy":
                 next.inaccuracy++;
                 break;
@@ -1023,16 +1205,29 @@ function finishMove(
             case "Blunder":
                 next.blunder++;
                 break;
+
         }
 
-        moveStatsRef.current = next;
+
+        //--------------------------------
+        // 최신 통계
+        //--------------------------------
+
+        moveStatsRef.current =
+            next;
 
         setMoveStats(next);
+
+
+        //--------------------------------
+        // 플레이어 대사
+        //--------------------------------
 
         sayMoveType(
             quality,
             false
         );
+
     }
 
 
@@ -1046,7 +1241,9 @@ function finishMove(
             quality,
             true
         );
+
     }
+
 
     // ↓↓↓ 여기부터 기존 코드 계속
 }
@@ -1343,6 +1540,8 @@ moveStatsRef.current = {
     blunder: 0
 };
 
+resetPlayerAccuracies();
+
     say("starting");
 
 }
@@ -1424,6 +1623,8 @@ moveStatsRef.current = {
     blunder: 0
 
 };
+
+resetPlayerAccuracies();
 
     say("starting");
 

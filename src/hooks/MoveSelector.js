@@ -1,8 +1,9 @@
+// MoveSelector.js
+
 import difficulty from "./difficulty";
 
-
 // ========================================
-// Stockfish 후보 수 저장
+// Stockfish 후보 수
 // ========================================
 
 let candidateMoves = [];
@@ -14,7 +15,7 @@ let candidateMoves = [];
 
 export function parseEngineLine(line) {
 
-    if (!line.startsWith("info")) {
+    if (!line || !line.startsWith("info")) {
         return;
     }
 
@@ -26,11 +27,6 @@ export function parseEngineLine(line) {
             /\bpv\s+([a-h][1-8][a-h][1-8][qrbn]?)/
         );
 
-    const cp =
-        line.match(
-            /\bscore\s+cp\s+(-?\d+)/
-        );
-
     if (!multi || !pv) {
         return;
     }
@@ -38,14 +34,37 @@ export function parseEngineLine(line) {
     const multipv =
         Number(multi[1]);
 
+    // cp 또는 mate 둘 중 하나
+    const cpMatch =
+        line.match(/\bscore\s+cp\s+(-?\d+)/);
+
+    const mateMatch =
+        line.match(/\bscore\s+mate\s+(-?\d+)/);
+
+    let score = 0;
+    let mate = null;
+
+    if (cpMatch) {
+
+        score =
+            Number(cpMatch[1]);
+
+    }
+
+    if (mateMatch) {
+
+        mate =
+            Number(mateMatch[1]);
+
+    }
+
     candidateMoves[multipv - 1] = {
 
         move: pv[1],
 
-        score:
-            cp
-                ? Number(cp[1])
-                : 0,
+        score,
+
+        mate,
 
         multipv
 
@@ -72,17 +91,35 @@ export function getCandidates() {
 
     return candidateMoves
         .filter(Boolean)
-        .sort(
-            (a, b) =>
+        .sort((a, b) => {
+
+            // Mate가 있으면 mate 우선
+            if (a.mate !== null && b.mate !== null) {
+
+                return b.mate - a.mate;
+
+            }
+
+            if (a.mate !== null) {
+                return -1;
+            }
+
+            if (b.mate !== null) {
+                return 1;
+            }
+
+            return (
                 b.score - a.score ||
                 a.multipv - b.multipv
-        );
+            );
+
+        });
 
 }
 
 
 // ========================================
-// 랜덤 선택
+// 랜덤
 // ========================================
 
 function pickRandom(list) {
@@ -101,7 +138,7 @@ function pickRandom(list) {
 
 
 // ========================================
-// 평가 점수 기반 가중 랜덤
+// 점수 가중 랜덤
 // ========================================
 
 function pickWeightedByScore(list) {
@@ -114,16 +151,21 @@ function pickWeightedByScore(list) {
         return list[0];
     }
 
-    const minScore =
-        Math.min(
-            ...list.map(x => x.score)
+    const scores =
+        list.map(x =>
+            x.mate !== null
+                ? 1000000 - Math.abs(x.mate) * 10000
+                : x.score
         );
 
+    const minScore =
+        Math.min(...scores);
+
     const weights =
-        list.map(x =>
+        scores.map(score =>
             Math.max(
                 1,
-                x.score - minScore + 1
+                score - minScore + 1
             )
         );
 
@@ -162,7 +204,7 @@ function pickWeightedByScore(list) {
 function qualityFromRank(rankIndex) {
 
     if (rankIndex === 0)
-        return "Brilliant";
+        return "Best";
 
     if (rankIndex === 1)
         return "Great";
@@ -204,14 +246,21 @@ export function chooseMove(
         getCandidates();
 
 
-    // 후보가 없으면 Stockfish의 bestmove 사용
+    // 후보가 없을 때
     if (!candidates.length) {
 
         return {
+
             move: fallbackMove,
+
             quality: "Best",
+
             rank: 0,
-            score: 0
+
+            score: 0,
+
+            mate: null
+
         };
 
     }
@@ -229,18 +278,12 @@ export function chooseMove(
 
     const top2 =
         candidates[1] ??
-        candidates[0];
+        top1;
 
     const top3 =
         candidates[2] ??
-        candidates[
-            candidates.length - 1
-        ];
+        top1;
 
-
-    // ========================================
-    // 후보 그룹
-    // ========================================
 
     const topQuarter =
         candidates.slice(
@@ -251,6 +294,7 @@ export function chooseMove(
             )
         );
 
+
     const topHalf =
         candidates.slice(
             0,
@@ -259,6 +303,7 @@ export function chooseMove(
                 Math.ceil(n * 0.5)
             )
         );
+
 
     const middleThird =
         candidates.slice(
@@ -272,6 +317,7 @@ export function chooseMove(
             )
         );
 
+
     const lowerThird =
         candidates.slice(
             Math.max(
@@ -280,6 +326,7 @@ export function chooseMove(
             ),
             n
         );
+
 
     const bottomQuarter =
         candidates.slice(
@@ -290,14 +337,11 @@ export function chooseMove(
         );
 
 
-    let chosen;
+    let chosen = null;
     let quality = "Best";
 
 
-    // ========================================
     // Brilliant
-    // ========================================
-
     if (
         r <
         profile.brilliantChance
@@ -310,10 +354,7 @@ export function chooseMove(
     }
 
 
-    // ========================================
     // Great
-    // ========================================
-
     else if (
         r <
         profile.greatChance
@@ -326,10 +367,7 @@ export function chooseMove(
     }
 
 
-    // ========================================
     // Best
-    // ========================================
-
     else if (
         r <
         profile.bestChance
@@ -342,10 +380,7 @@ export function chooseMove(
     }
 
 
-    // ========================================
     // Excellent
-    // ========================================
-
     else if (
         r <
         profile.excellentChance
@@ -364,10 +399,7 @@ export function chooseMove(
     }
 
 
-    // ========================================
     // Good
-    // ========================================
-
     else if (
         r <
         profile.goodChance
@@ -386,10 +418,7 @@ export function chooseMove(
     }
 
 
-    // ========================================
     // Inaccuracy
-    // ========================================
-
     else if (
         r <
         profile.inaccuracyChance
@@ -410,10 +439,7 @@ export function chooseMove(
     }
 
 
-    // ========================================
     // Mistake
-    // ========================================
-
     else if (
         r <
         profile.mistakeChance
@@ -434,10 +460,7 @@ export function chooseMove(
     }
 
 
-    // ========================================
     // Blunder
-    // ========================================
-
     else if (
         r <
         profile.blunderChance
@@ -447,11 +470,7 @@ export function chooseMove(
             pickRandom(
                 bottomQuarter.length
                     ? bottomQuarter
-                    : [
-                        candidates[
-                            n - 1
-                        ]
-                    ]
+                    : [candidates[n - 1]]
             );
 
         quality = "Blunder";
@@ -459,21 +478,18 @@ export function chooseMove(
     }
 
 
-    // ========================================
-    // 최악의 수
-    // ========================================
-
+    // 최악의 경우
     else {
 
         chosen =
             candidates[n - 1];
 
-        quality = "Blunder";
+        quality =
+            "Blunder";
 
     }
 
 
-    // 안전장치
     if (!chosen) {
 
         chosen = top1;
@@ -493,7 +509,10 @@ export function chooseMove(
             candidates.indexOf(chosen),
 
         score:
-            chosen.score
+            chosen.score,
+
+        mate:
+            chosen.mate
 
     };
 
@@ -501,7 +520,84 @@ export function chooseMove(
 
 
 // ========================================
-// 플레이어 수 분석
+// UCI move 비교
+// ========================================
+
+export function normalizeUciMove(move) {
+
+    if (!move) {
+        return "";
+    }
+
+    return move
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-h1-8qrbn]/g, "");
+
+}
+
+
+// ========================================
+// 플레이어가 둔 수 찾기
+// ========================================
+
+export function findCandidateMove(
+    move,
+    candidates
+) {
+
+    if (
+        !move ||
+        !candidates ||
+        !candidates.length
+    ) {
+
+        return null;
+
+    }
+
+
+    const base =
+        `${move.from}${move.to}`
+            .toLowerCase();
+
+
+    const promotion =
+        move.promotion
+            ? move.promotion.toLowerCase()
+            : "";
+
+
+    // 승진 수
+    if (promotion) {
+
+        const exact =
+            candidates.find(c =>
+                normalizeUciMove(c.move) ===
+                `${base}${promotion}`
+            );
+
+        if (exact) {
+            return exact;
+        }
+
+    }
+
+
+    // 일반 수
+    return (
+        candidates.find(c =>
+            normalizeUciMove(c.move)
+                .startsWith(base)
+        ) ??
+        null
+    );
+
+}
+
+
+// ========================================
+// 플레이어 수의 후보 순위 분석
 // ========================================
 
 export function getPlayerMoveQuality(
@@ -524,78 +620,9 @@ export function getPlayerMoveQuality(
 
             bestScore: null,
 
-            loss: 0
+            loss: null,
 
-        };
-
-    }
-
-
-    // ========================================
-    // 플레이어 수 찾기
-    // ========================================
-
-    let index =
-        candidates.findIndex(c => {
-
-            const candidateMove =
-                c.move;
-
-            return (
-
-                candidateMove.startsWith(
-                    `${move.from}${move.to}`
-                )
-
-                &&
-
-                (
-                    !move.promotion
-                    ||
-                    candidateMove[4]
-                    === move.promotion
-                )
-
-            );
-
-        });
-
-
-    // ========================================
-    // 일반 수
-    // ========================================
-
-    if (index === -1) {
-
-        index =
-            candidates.findIndex(c =>
-                c.move.startsWith(
-                    `${move.from}${move.to}`
-                )
-            );
-
-    }
-
-
-    // ========================================
-    // 후보에 없는 수
-    // ========================================
-
-    if (index === -1) {
-
-        return {
-
-            quality: "Blunder",
-
-            rank: -1,
-
-            score: null,
-
-            bestScore:
-                candidates[0]?.score ??
-                null,
-
-            loss: Infinity
+            found: false
 
         };
 
@@ -603,7 +630,38 @@ export function getPlayerMoveQuality(
 
 
     const selected =
-        candidates[index];
+        findCandidateMove(
+            move,
+            candidates
+        );
+
+
+    // 후보에 없다고 Blunder로 확정하지 않는다.
+    if (!selected) {
+
+        return {
+
+            quality: "Unknown",
+
+            rank: -1,
+
+            score: null,
+
+            bestScore:
+                candidates[0]?.score ?? null,
+
+            loss: null,
+
+            found: false
+
+        };
+
+    }
+
+
+    const index =
+        candidates.indexOf(selected);
+
 
     const best =
         candidates[0];
@@ -612,24 +670,17 @@ export function getPlayerMoveQuality(
     const bestScore =
         best?.score ?? 0;
 
+
     const selectedScore =
         selected?.score ?? 0;
 
 
-    // ========================================
-    // 평가 손실
-    // ========================================
-
     const loss =
-        Math.abs(
-            bestScore -
-            selectedScore
+        Math.max(
+            0,
+            bestScore - selectedScore
         );
 
-
-    // ========================================
-    // 품질 판정
-    // ========================================
 
     let quality;
 
@@ -643,7 +694,6 @@ export function getPlayerMoveQuality(
 
     }
 
-    // 1위
     else if (
         index === 0
     ) {
@@ -652,7 +702,6 @@ export function getPlayerMoveQuality(
 
     }
 
-    // 2위 + 거의 동일한 평가
     else if (
         index === 1 &&
         loss <= 30
@@ -662,9 +711,7 @@ export function getPlayerMoveQuality(
 
     }
 
-    // 3위 이내 + 평가 차이 작음
     else if (
-        index <= 2 &&
         loss <= 50
     ) {
 
@@ -672,9 +719,7 @@ export function getPlayerMoveQuality(
 
     }
 
-    // 상위 5개
     else if (
-        index <= 4 &&
         loss <= 100
     ) {
 
@@ -682,9 +727,7 @@ export function getPlayerMoveQuality(
 
     }
 
-    // 상위 7개
     else if (
-        index <= 6 &&
         loss <= 200
     ) {
 
@@ -692,7 +735,6 @@ export function getPlayerMoveQuality(
 
     }
 
-    // 작은 평가 손실
     else if (
         loss <= 50
     ) {
@@ -701,7 +743,6 @@ export function getPlayerMoveQuality(
 
     }
 
-    // 중간 평가 손실
     else if (
         loss <= 150
     ) {
@@ -710,7 +751,6 @@ export function getPlayerMoveQuality(
 
     }
 
-    // 큰 평가 손실
     else {
 
         quality = "Blunder";
@@ -728,7 +768,9 @@ export function getPlayerMoveQuality(
 
         bestScore,
 
-        loss
+        loss,
+
+        found: true
 
     };
 
