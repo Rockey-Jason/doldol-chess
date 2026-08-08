@@ -1,4 +1,10 @@
-import { parseEngineLine, getCandidates, clearCandidates, chooseMove } from "./MoveSelector";
+import {
+    parseEngineLine,
+    getCandidates,
+    clearCandidates,
+    chooseMove,
+    getPlayerMoveQuality
+} from "./MoveSelector";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../supabase";
 import game from "../chess/ChessGame";
@@ -252,7 +258,7 @@ function createPGN(result = "*") {
     console.log(pgn);
 
     return pgn;
-}
+}sayPlayerMoveReaction
 
 //--------------------------------
 // PGN / Game Summary 공통 헤더
@@ -484,57 +490,25 @@ async function addRating(amount){
 
     }
 
-    function startPlayerAnalysis() {
+function startPlayerAnalysis() {
+
     if (game.isGameOver()) return;
 
+    clearCandidates();
 
-        clearCandidates();
     analysisMode.current = true;
 
+    engine.current.send(
+        `position fen ${game.fen()}`
+    );
 
-    engine.current.send(`position fen ${game.fen()}`);
-    engine.current.send("setoption name MultiPV value 6");
-    engine.current.send("go movetime 120");
-}
+    engine.current.send(
+        "setoption name MultiPV value 10"
+    );
 
-function sayPlayerMoveReaction(move) {
-    const moveKey = `${move.from}${move.to}${move.promotion || "q"}`;
-    const candidates = playerCandidatesRef.current || [];
-
-    if(candidates.length===0){
-
-    say("normal");
-
-    return;
-
-}
-
-    let rank = candidates.findIndex((c) => c.move.startsWith(moveKey));
-
-    // 후보수로 못 찾으면 대충 근사치
-    let dialogKey = "otherBlunder";
-
-    if (move.promotion || game.isCheckmate()) {
-        dialogKey = "otherBrilliant";
-    } else if (rank === 0) {
-        dialogKey = "otherBrilliant";
-    } else if (rank === 1) {
-        dialogKey = "otherGreat";
-    } else if (rank === 2) {
-        dialogKey = "otherBest";
-    } else if (rank >= 0 && rank <= 4) {
-        dialogKey = "otherExcellent";
-    } else if (rank >= 0 && rank <= 8) {
-        dialogKey = "otherGood";
-    } else if (rank >= 0 && rank <= 12) {
-        dialogKey = "otherInaccuracy";
-    } else if (rank >= 0 && rank <= 16) {
-        dialogKey = "otherMistake";
-    } else {
-        dialogKey = "otherBlunder";
-    }
-
-    say(dialogKey);
+    engine.current.send(
+        "go movetime 250"
+    );
 }
 
     function sayMoveType(quality, isBotMove) {
@@ -587,18 +561,106 @@ useEffect(() => {
 
 }
 
-if(msg.startsWith("bestmove")){
-    console.log("BESTMOVE:", msg);
-    console.log("CANDIDATES:", getCandidates());
-}
+if (msg.startsWith("bestmove")) {
 
-        // 플레이어 수 분석용 bestmove 수신
-        if (analysisMode.current && msg.startsWith("bestmove")) {
-            playerCandidatesRef.current = getCandidates();
-            clearCandidates();
-            analysisMode.current = false;
-            return;
-        }
+    console.log(
+        "BESTMOVE:",
+        msg
+    );
+
+    const candidates =
+        getCandidates();
+
+    console.log(
+        "CANDIDATES:",
+        candidates
+    );
+
+
+    // ------------------------------
+    // 플레이어 분석
+    // ------------------------------
+
+    if (analysisMode.current) {
+
+        playerCandidatesRef.current =
+            [...candidates];
+
+        console.log(
+            "♟ 플레이어 후보수 저장:",
+            playerCandidatesRef.current
+        );
+
+        clearCandidates();
+
+        analysisMode.current = false;
+
+        return;
+    }
+
+
+    // ------------------------------
+    // 봇 실제 수
+    // ------------------------------
+
+    const engineMove =
+        msg.split(" ")[1];
+
+    const result =
+        chooseMove(
+            currentBot,
+            engineMove
+        );
+
+    clearCandidates();
+
+    if (!result) return;
+
+    const botMove =
+        result.move;
+
+    const quality =
+        result.quality;
+
+
+    if (
+        !botMove ||
+        botMove === "(none)"
+    ) {
+        return;
+    }
+
+
+    const from =
+        botMove.substring(0, 2);
+
+    const to =
+        botMove.substring(2, 4);
+
+    const promotion =
+        botMove.length >= 5
+            ? botMove.substring(4, 5)
+            : "q";
+
+
+    const delay =
+        getThinkDelay(
+            currentBot
+        );
+
+
+    setTimeout(() => {
+
+        playAnimatedMove(
+            from,
+            to,
+            promotion,
+            false,
+            quality
+        );
+
+    }, delay);
+}
 
         // 봇의 실제 수
         if (!msg.startsWith("bestmove")) return;
@@ -778,19 +840,28 @@ setTimeout(()=>{
         return;
     }
 
-    const move=game.move({
-        from,
-        to,
-        promotion
-    });
+const move = game.move({
+    from,
+    to,
+    promotion
+});
 
-    setMoveAnimations([]);
+setMoveAnimations([]);
 
-    finishMove(
-        move,
-        isPlayer,
-        quality
-    );
+let finalQuality = quality;
+
+if (isPlayer) {
+
+    if (!finalQuality) {
+        finalQuality = "Good";
+    }
+}
+
+finishMove(
+    move,
+    isPlayer,
+    finalQuality
+);
 
 },180);
 
@@ -819,194 +890,110 @@ capturedBlack.forEach(p => {
     materialScore.black += pieceValue[p[1]] || 0;
 });
 
-function finishMove(move,isPlayerMove=true,quality="Best"){
+function finishMove(
+    move,
+    isPlayerMove = true,
+    quality = "Best"
+) {
+
     if (!move) return false;
 
 
-    if(!isPlayerMove){
-    sayMoveType(quality,true);
-}
-//--------------------------------
-// Statistics
-//--------------------------------
+    //--------------------------------
+    // 플레이어 수 분석
+    //--------------------------------
 
-if (isPlayerMove) {
+    if (isPlayerMove) {
 
-    const next = {
-        ...moveStatsRef.current
-    };
+        const analyzed =
+            getPlayerMoveQuality(
+                move,
+                playerCandidatesRef.current
+            );
 
-    switch (quality) {
+        quality =
+            analyzed.quality;
 
-        case "Brilliant":
-            next.brilliant++;
-            break;
+        console.log(
+            "♟ 플레이어 분석:",
+            analyzed
+        );
 
-        case "Great":
-            next.great++;
-            break;
+        playerCandidatesRef.current = [];
 
-        case "Best":
-            next.best++;
-            break;
 
-        case "Excellent":
-            next.excellent++;
-            break;
+        //--------------------------------
+        // 통계
+        //--------------------------------
 
-        case "Good":
-            next.good++;
-            break;
+        const next = {
+            ...moveStatsRef.current
+        };
 
-        case "Inaccuracy":
-            next.inaccuracy++;
-            break;
+        switch (quality) {
 
-        case "Mistake":
-            next.mistake++;
-            break;
+            case "Brilliant":
+                next.brilliant++;
+                break;
 
-        case "Blunder":
-            next.blunder++;
-            break;
+            case "Great":
+                next.great++;
+                break;
+
+            case "Best":
+                next.best++;
+                break;
+
+            case "Excellent":
+                next.excellent++;
+                break;
+
+            case "Good":
+                next.good++;
+                break;
 
             case "Miss":
-    next.miss++;
-    break;
-    }
+                next.miss++;
+                break;
 
-    // 즉시 최신값 보관
-    moveStatsRef.current = next;
+            case "Inaccuracy":
+                next.inaccuracy++;
+                break;
 
-    // 화면에도 반영
-    setMoveStats(next);
-}
-    if (move.captured) {
-        captureSound.currentTime = 0;
-        captureSound.play().catch(() => {});
-    } else {
-        moveSound.currentTime = 0;
-        moveSound.play().catch(() => {});
-    }
+            case "Mistake":
+                next.mistake++;
+                break;
 
-if (move.captured) {
-
-    console.log(move);
-
-    const captured =
-        (move.color === "w" ? "b" : "w") +
-        move.captured.toUpperCase();
-
-    if (move.color === "w") {
-
-        // 백이 흑 기물을 잡음
-        setCapturedBlack(prev => [...prev, captured]);
-
-    } else {
-
-        // 흑이 백 기물을 잡음
-        setCapturedWhite(prev => [...prev, captured]);
-
-    }
-
-}
-
-    // 플레이어가 둔 수면 반응
-if(
-    isPlayerMove &&
-    playerCandidatesRef.current.length
-){
-
-    sayPlayerMoveReaction(move);
-
-    playerCandidatesRef.current=[];
-
-}
-
-    // 캐슬링
-    if (
-        move.piece === "k" &&
-        Math.abs(move.from.charCodeAt(0) - move.to.charCodeAt(0)) === 2
-    ) {
-        castleSound.currentTime = 0;
-        castleSound.play().catch(() => {});
-        say("castle");
-    }
-
-    if (move.promotion) {
-        say("promotion");
-    }
-
-    if (game.inCheck()) {
-        say("check");
-    }
-
-    if (game.isCheckmate()) {
-        say("checkmate");
-        setGameOver(true);
-
-
-        const end = Date.now();
-
-const seconds = Math.floor(
-    (end - gameStartTime.current)/1000
-);
-
-const minutes = Math.floor(seconds/60);
-
-const remain = seconds%60;
-
-buildGameSummary(
-    move.color==="w"
-        ? "1-0"
-        : "0-1"
-);
-
-        if (isPlayerMove) {
-            setWinner("White");
-            addRating(ratingReward[currentBot] || 0);
-            
-        } else {
-            setWinner(game.turn() === "w" ? "Black" : "White");
-            
+            case "Blunder":
+                next.blunder++;
+                break;
         }
 
-        setSelected(null);
-        setMoves([]);
-        return true;
+        moveStatsRef.current = next;
+
+        setMoveStats(next);
+
+        sayMoveType(
+            quality,
+            false
+        );
     }
 
-    if (game.isDraw()) {
-        say("stalemate");
-        setGameOver(true);
-        setWinner("Draw");
-        buildGameSummary("1/2-1/2");
-        
 
+    //--------------------------------
+    // Bot reaction
+    //--------------------------------
 
-        setSelected(null);
-        setMoves([]);
-        return true;
+    if (!isPlayerMove) {
+
+        sayMoveType(
+            quality,
+            true
+        );
     }
 
-    setSelected(null);
-    setMoves([]);
-
-    // 플레이어가 둔 뒤에는 봇이 생각
-    if (isPlayerMove && game.turn() === "b" && !game.isGameOver()) {
-        say("thinking");
-        clearCandidates();
-        requestMove(engine.current, currentBot, game.fen());
-    }
-
-    // 봇이 둔 뒤에는 플레이어 수를 미리 분석
-    if (!isPlayerMove && game.turn() === "w" && !game.isGameOver()) {
-        startPlayerAnalysis();
-    }
-
-    return;
+    // ↓↓↓ 여기부터 기존 코드 계속
 }
-
 function clickSquare(square) {
     if (game.isGameOver()) return;
 
@@ -1131,24 +1118,37 @@ playAnimatedMove(
 return;
 }
 
-function choosePromotion(piece){
+function choosePromotion(piece) {
+
+    if (!promotionData) return;
 
     const move = game.move({
 
-        from:promotionData.from,
-        to:promotionData.to,
-        promotion:piece
+        from: promotionData.from,
+
+        to: promotionData.to,
+
+        promotion: piece
 
     });
 
+
+    if (!move) {
+
+        setPromotionData(null);
+
+        return;
+    }
+
+
     finishMove(
         move,
-        promotionData.isPlayer,
-        promotionData.quality
+        promotionData.isPlayer ?? true,
+        promotionData.quality ?? "Good"
     );
 
-    setPromotionData(null);
 
+    setPromotionData(null);
 }
 
 //--------------------------------
