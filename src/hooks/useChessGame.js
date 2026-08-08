@@ -53,6 +53,8 @@ const [moveStats, setMoveStats] = useState({
 
     good:0,
 
+    miss: 0,
+
     inaccuracy:0,
 
     mistake:0,
@@ -69,7 +71,8 @@ const moveStatsRef = useRef({
     good: 0,
     inaccuracy: 0,
     mistake: 0,
-    blunder: 0
+    blunder: 0,
+    miss: 0
 });
 
 const gameStartTime = useRef(Date.now());
@@ -282,62 +285,57 @@ function buildGameSummary(result) {
     );
 
     const minutes = Math.floor(seconds / 60);
-
     const remain = seconds % 60;
-
-    const bot = botData[currentBot];
 
     const pgn = createPGN(result);
 
-const headers = createGameHeaders(result);
+    const headers = createGameHeaders(result);
 
-const summary = {
+    const stats = moveStatsRef.current;
 
-    ...headers,
+    const summary = {
 
-    event: headers.Event,
-    site: headers.Site,
-    date: headers.Date,
-    round: headers.Round,
-    white: headers.White,
-    black: headers.Black,
-    difficulty: headers.Difficulty,
-    result: headers.Result,
+        ...headers,
 
-    playerRating:
-        Number(headers.PlayerRating),
+        event: headers.Event,
+        site: headers.Site,
+        date: headers.Date,
+        round: headers.Round,
+        white: headers.White,
+        black: headers.Black,
+        difficulty: headers.Difficulty,
+        result: headers.Result,
 
-    botRating:
-        Number(headers.BotRating),
+        playerRating:
+            Number(headers.PlayerRating),
 
-    playTime:
-        `${minutes}:${String(remain).padStart(2,"0")}`,
+        botRating:
+            Number(headers.BotRating),
 
-    accuracy:100,
+        playTime:
+            `${minutes}:${String(remain).padStart(2, "0")}`,
 
-    brilliant:moveStats.brilliant,
-    great:moveStats.great,
-    best:moveStats.best,
-    excellent:moveStats.excellent,
-    good:moveStats.good,
-    inaccuracy:moveStats.inaccuracy,
-    mistake:moveStats.mistake,
-    blunder:moveStats.blunder,
+accuracy: 100,
 
-    totalMoves:
-        Math.ceil(game.history().length / 2),
+brilliant: stats.brilliant,
+great: stats.great,
+best: stats.best,
+excellent: stats.excellent,
+good: stats.good,
+miss: stats.miss,
+inaccuracy: stats.inaccuracy,
+mistake: stats.mistake,
+blunder: stats.blunder,
 
-    pgn:
-        game.pgn()
+        totalMoves:
+            Math.ceil(game.history().length / 2),
 
-};
+        pgn: pgn
+    };
 
     setGameSummary(summary);
 
-    console.log(
-        "게임 최종 기록:",
-        summary
-    );
+    console.log("게임 최종 기록:", summary);
 
     return summary;
 }
@@ -846,6 +844,10 @@ if (isPlayerMove) {
         case "Blunder":
             next.blunder++;
             break;
+
+            case "Miss":
+    next.miss++;
+    break;
     }
 
     // 즉시 최신값 보관
@@ -1221,6 +1223,8 @@ setMoveStats({
 
     brilliant:0,
 
+    miss: 0,
+
     great:0,
 
     best:0,
@@ -1302,6 +1306,8 @@ setMoveStats({
     brilliant:0,
 
     great:0,
+
+    miss: 0,
 
     best:0,
 
