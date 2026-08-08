@@ -186,20 +186,16 @@ function createPGN(result){
 
     const bot = botData[currentBot];
 
-    const date = gameStartDate.current;
-
-    const headers = {
-        Event: "Doldol Chess",
-        Site: "Doldol Site",
-        Date: date,
-        Round: "1",
-        White: "Player",
-        Black: bot?.name || currentBot,
-        Result: result,
-        Difficulty: `Lv.${bot?.level ?? 1}`
-    };
-
-    game.header(headers);
+    game.header(
+        "Event", "Doldol Chess",
+        "Site", "Doldol Site",
+        "Date", gameStartDate.current,
+        "Round", "1",
+        "White", "Player",
+        "Black", bot?.name || currentBot,
+        "Result", result,
+        "Difficulty", `Lv.${bot?.level ?? 1}`
+    );
 
     return game.pgn({
         newline: "\n"
@@ -227,38 +223,38 @@ function buildGameSummary(result){
 
 const summary = {
 
-    event:"Doldol Chess",
+    event: "Doldol Chess",
 
-    site:"Doldol Site",
+    site: "Doldol Site",
 
     date: gameStartDate.current,
 
-    white:"Player",
+    white: "Player",
 
-    black:bot.name,
+    black: bot.name,
 
-    difficulty:`Lv.${bot.level}`,
+    difficulty: `Lv.${bot.level}`,
 
     result,
 
-    playerRating:rating,
+    playerRating: rating,
 
     botRating:
         botRating[currentBot] ?? 0,
 
     playTime:
-        `${minutes}:${String(remain).padStart(2,"0")}`,
+        `${minutes}:${String(remain).padStart(2, "0")}`,
 
-    accuracy:100,
+    accuracy: 100,
 
-    brilliant:moveStats.brilliant,
-    great:moveStats.great,
-    best:moveStats.best,
-    excellent:moveStats.excellent,
-    good:moveStats.good,
-    inaccuracy:moveStats.inaccuracy,
-    mistake:moveStats.mistake,
-    blunder:moveStats.blunder,
+    brilliant: moveStats.brilliant,
+    great: moveStats.great,
+    best: moveStats.best,
+    excellent: moveStats.excellent,
+    good: moveStats.good,
+    inaccuracy: moveStats.inaccuracy,
+    mistake: moveStats.mistake,
+    blunder: moveStats.blunder,
 
     totalMoves:
         game.history().length,
@@ -1238,15 +1234,14 @@ engine.current.send("isready");
 
 function downloadPGN(){
 
-    const pgn =
-        gameSummary?.pgn ||
-        createPGN(
-            winner === "White"
-                ? "1-0"
-                : winner === "Black"
-                    ? "0-1"
-                    : "1/2-1/2"
-        );
+    const result =
+        game.isCheckmate()
+            ? (winner === "White" ? "1-0" : "0-1")
+            : game.isDraw()
+                ? "1/2-1/2"
+                : "*";
+
+    const pgn = createPGN(result);
 
     const blob = new Blob(
         [pgn],
