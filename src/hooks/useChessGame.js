@@ -61,6 +61,12 @@ const [moveStats, setMoveStats] = useState({
 
 });
 const gameStartTime = useRef(Date.now());
+const gameStartDate = useRef(
+    new Date()
+        .toISOString()
+        .slice(0, 10)
+        .replaceAll("-", ".")
+);
 const [gameSummary,setGameSummary] = useState({
 
     date:"",
@@ -173,6 +179,35 @@ function getThinkDelay(bot){
 };
 
 //--------------------------------
+// Create PGN
+//--------------------------------
+
+function createPGN(result){
+
+    const bot = botData[currentBot];
+
+    const date = gameStartDate.current;
+
+    const headers = {
+        Event: "Doldol Chess",
+        Site: "Doldol Site",
+        Date: date,
+        Round: "1",
+        White: "Player",
+        Black: bot?.name || currentBot,
+        Result: result,
+        Difficulty: `Lv.${bot?.level ?? 1}`
+    };
+
+    game.header(headers);
+
+    return game.pgn({
+        newline: "\n"
+    });
+
+}
+
+//--------------------------------
 // Build Game Summary
 //--------------------------------
 
@@ -196,9 +231,7 @@ const summary = {
 
     site:"Doldol Site",
 
-    date:new Date()
-        .toISOString()
-        .slice(0,10),
+    date: gameStartDate.current,
 
     white:"Player",
 
@@ -227,12 +260,11 @@ const summary = {
     mistake:moveStats.mistake,
     blunder:moveStats.blunder,
 
-
     totalMoves:
         game.history().length,
 
     pgn:
-        game.pgn()
+        createPGN(result)
 
 };
 
@@ -1093,6 +1125,9 @@ function resetGame(){
 
     gameStartTime.current = Date.now();
 
+    gameStartDate.current =
+    new Date().toISOString().slice(0, 10).replaceAll("-", ".");
+
     startSound.currentTime = 0;
     startSound.play().catch(()=>{});
 
@@ -1150,6 +1185,9 @@ function setBot(bot){
 
     gameStartTime.current = Date.now();
 
+    gameStartDate.current =
+    new Date().toISOString().slice(0, 10).replaceAll("-", ".");
+
     startSound.currentTime = 0;
     startSound.play().catch(()=>{});
 
@@ -1201,59 +1239,40 @@ engine.current.send("isready");
 function downloadPGN(){
 
     const pgn =
-        gameSummary.pgn || game.pgn();
-
-    const text =
-`
-[Event "${gameSummary.event}"]
-[Site "${gameSummary.site}"]
-[Date "${gameSummary.date}"]
-[White "${gameSummary.white}"]
-[Black "${gameSummary.black}"]
-[Difficulty "${gameSummary.difficulty}"]
-[Result "${gameSummary.result}"]
-[Player Rating "${gameSummary.playerRating}"]
-[Bot Rating "${gameSummary.botRating}"]
-[Play Time "${gameSummary.playTime}"]
-[Accuracy "${gameSummary.accuracy}%"]
-[Brilliant "${gameSummary.brilliant}"]
-[Great "${gameSummary.great}"]
-[Best "${gameSummary.best}"]
-[Excellent "${gameSummary.excellent}"]
-[Good "${gameSummary.good}"]
-[Inaccuracy "${gameSummary.inaccuracy}"]
-[Mistake "${gameSummary.mistake}"]
-[Blunder "${gameSummary.blunder}"]
-[Total Moves "${gameSummary.totalMoves}"]
-
-${pgn}
-`;
+        gameSummary?.pgn ||
+        createPGN(
+            winner === "White"
+                ? "1-0"
+                : winner === "Black"
+                    ? "0-1"
+                    : "1/2-1/2"
+        );
 
     const blob = new Blob(
-        [text],
+        [pgn],
         {
-            type:"application/x-chess-pgn"
+            type: "application/x-chess-pgn"
         }
     );
-
 
     const url =
         URL.createObjectURL(blob);
 
+    const a =
+        document.createElement("a");
 
-    const a=document.createElement("a");
+    a.href = url;
 
-    a.href=url;
+    a.download =
+        `doldol-chess-${gameStartDate.current}.pgn`;
 
-    a.download=
-    `DoldolChess_${gameSummary.date}.pgn`;
-
+    document.body.appendChild(a);
 
     a.click();
 
+    document.body.removeChild(a);
 
     URL.revokeObjectURL(url);
-
 }
 
 //--------------------------------
