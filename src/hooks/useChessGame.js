@@ -511,6 +511,50 @@ function startPlayerAnalysis() {
     );
 }
 
+function sayPlayerMoveReaction(move) {
+
+    const candidates =
+        playerCandidatesRef.current || [];
+
+
+    // 분석 후보가 아직 없으면
+    if (candidates.length === 0) {
+
+        sayMoveType(
+            "Good",
+            false
+        );
+
+        return "Good";
+    }
+
+
+    const analyzed =
+        getPlayerMoveQuality(
+            move,
+            candidates
+        );
+
+
+    const quality =
+        analyzed.quality;
+
+
+    console.log(
+        "♟ 플레이어 수 분석:",
+        analyzed
+    );
+
+
+    sayMoveType(
+        quality,
+        false
+    );
+
+
+    return quality;
+}
+
     function sayMoveType(quality, isBotMove) {
     const keyMap = {
         Brilliant: isBotMove ? "botBrilliant" : "otherBrilliant",
