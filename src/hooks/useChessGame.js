@@ -658,6 +658,9 @@ function startPlayerAnalysis() {
 
     if (game.isGameOver()) return;
 
+    // 이미 분석 중이면 중복 실행 방지
+    if (analysisMode.current) return;
+
     console.log("🔍 플레이어 분석 시작");
     console.log("현재 FEN:", game.fen());
 
@@ -760,14 +763,7 @@ useEffect(() => {
         // Engine info
         // --------------------------------
 
-        if (msg.startsWith("info")) {
-
-            parseEngineLine(msg);
-
-            return;
-        }
-
-        if (msg.startsWith("info")) {
+if (msg.startsWith("info")) {
 
     parseEngineLine(msg);
 
@@ -776,6 +772,7 @@ useEffect(() => {
         getCandidates()
     );
 
+    return;
 }
 
 
@@ -909,6 +906,28 @@ if (analysisMode.current) {
     };
 
 }, [currentBot]);
+
+//--------------------------------
+// Player Analysis
+//--------------------------------
+
+useEffect(() => {
+
+    // 플레이어 = White
+    if (turn !== "w") return;
+
+    if (game.isGameOver()) return;
+
+    // 이미 분석 준비가 되어 있으면 다시 하지 않음
+    if (playerAnalysisReady.current) return;
+
+    // 이미 분석 중이면 다시 하지 않음
+    if (analysisMode.current) return;
+
+    startPlayerAnalysis();
+
+}, [turn, position]);
+
     //--------------------------------
 // Player Move
 //--------------------------------
@@ -921,7 +940,7 @@ function playAnimatedMove(
     quality="Best"
 ){
 
-        // 플레이어 수는 Stockfish 분석이 끝난 뒤에만 진행
+    // 플레이어 수는 분석 완료 후 허용
     if (isPlayer && !playerAnalysisReady.current) {
 
         console.log(
@@ -933,159 +952,143 @@ function playAnimatedMove(
 
     const legal = game.moves({
         verbose:true
-    }).find(m=>
-        m.from===from &&
-        m.to===to &&
+    }).find(m =>
+        m.from === from &&
+        m.to === to &&
         (
             !m.promotion ||
-            m.promotion===promotion
+            m.promotion === promotion
         )
     );
 
-    if (isPlayer) {
-    startPlayerAnalysis();
-}
-
-    if(!legal) return false;
-
-    
-
-//---------------------------------
-// 움직이는 기물
-//---------------------------------
-
-const piece = game.get(from);
-
-if (!piece) return false;
-
-const animations = [];
-
-animations.push({
-    id: Date.now(),
-    from,
-    to,
-    piece:
-        (piece.color === "w" ? "w" : "b") +
-        piece.type.toUpperCase()
-});
+    if (!legal) return false;
 
     //---------------------------------
-    // 캐슬링이면 룩도 추가
+    // 움직이는 기물
     //---------------------------------
 
-    if(
+    const piece = game.get(from);
 
-        piece.type==="k" &&
+    if (!piece) return false;
 
+    const animations = [];
+
+    animations.push({
+        id: Date.now(),
+        from,
+        to,
+        piece:
+            (piece.color === "w" ? "w" : "b") +
+            piece.type.toUpperCase()
+    });
+
+    //---------------------------------
+    // 캐슬링
+    //---------------------------------
+
+    if (
+        piece.type === "k" &&
         Math.abs(
-            from.charCodeAt(0)-to.charCodeAt(0)
-        )===2
-
+            from.charCodeAt(0) -
+            to.charCodeAt(0)
+        ) === 2
     ){
 
-        let rookFrom="";
-        let rookTo="";
+        let rookFrom = "";
+        let rookTo = "";
 
-        if(to==="g1"){
-
-            rookFrom="h1";
-            rookTo="f1";
-
+        if (to === "g1") {
+            rookFrom = "h1";
+            rookTo = "f1";
         }
 
-        if(to==="c1"){
-
-            rookFrom="a1";
-            rookTo="d1";
-
+        if (to === "c1") {
+            rookFrom = "a1";
+            rookTo = "d1";
         }
 
-        if(to==="g8"){
-
-            rookFrom="h8";
-            rookTo="f8";
-
+        if (to === "g8") {
+            rookFrom = "h8";
+            rookTo = "f8";
         }
 
-        if(to==="c8"){
-
-            rookFrom="a8";
-            rookTo="d8";
-
+        if (to === "c8") {
+            rookFrom = "a8";
+            rookTo = "d8";
         }
 
-        const rook=game.get(rookFrom);
+        const rook = game.get(rookFrom);
 
         if (rook) {
-    animations.push({
 
-            id:Date.now()+1,
+            animations.push({
+                id: Date.now() + 1,
+                from: rookFrom,
+                to: rookTo,
+                piece:
+                    (rook.color === "w" ? "w" : "b") +
+                    rook.type.toUpperCase()
+            });
 
-            from:rookFrom,
-
-            to:rookTo,
-
-            piece:
-                (rook.color==="w"?"w":"b")+
-                rook.type.toUpperCase()
-
-        });
-
+        }
     }
-}
-
-    //---------------------------------
 
     setMoveAnimations(animations);
 
     //---------------------------------
+    // 실제 이동
+    //---------------------------------
 
-setTimeout(()=>{
+    setTimeout(() => {
 
-    if(
-        piece.type==="p" &&
-        (to.endsWith("8") || to.endsWith("1"))
-    ){
+        if (
+            piece.type === "p" &&
+            (
+                to.endsWith("8") ||
+                to.endsWith("1")
+            )
+        ){
 
-        setPromotionData({
+            setPromotionData({
+                from,
+                to,
+                isPlayer,
+                quality
+            });
+
+            setMoveAnimations([]);
+
+            return;
+        }
+
+        const move = game.move({
             from,
             to,
-            isPlayer,
-            quality
+            promotion
         });
 
         setMoveAnimations([]);
 
-        return;
-    }
+        let finalQuality = quality;
 
-const move = game.move({
-    from,
-    to,
-    promotion
-});
+        if (isPlayer && !finalQuality) {
+            finalQuality = "Good";
+        }
 
-setMoveAnimations([]);
+        // 이번 분석 결과는 이번 수에 사용했으므로 초기화
+        if (isPlayer) {
+            playerAnalysisReady.current = false;
+        }
 
-let finalQuality = quality;
+        finishMove(
+            move,
+            isPlayer,
+            finalQuality
+        );
 
-if (isPlayer) {
-
-    if (!finalQuality) {
-        finalQuality = "Good";
-    }
-}
-
-finishMove(
-    move,
-    isPlayer,
-    finalQuality
-);
-
-},180);
+    }, 180);
 
     return true;
-
 }
 
 const pieceValue = {
