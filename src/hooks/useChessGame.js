@@ -507,7 +507,7 @@ function startPlayerAnalysis() {
     );
 
     engine.current.send(
-        "go movetime 250"
+        "go movetime 500"
     );
 }
 
@@ -554,155 +554,142 @@ function startPlayerAnalysis() {
     //--------------------------
 
 useEffect(() => {
-    engine.current.onMessage((msg) => {
-        if(msg.startsWith("info")){
 
-    parseEngineLine(msg);
+    const handleEngineMessage = (msg) => {
 
-}
+        // --------------------------------
+        // Engine info
+        // --------------------------------
 
-if (msg.startsWith("bestmove")) {
+        if (msg.startsWith("info")) {
 
-    console.log(
-        "BESTMOVE:",
-        msg
-    );
+            parseEngineLine(msg);
 
-    const candidates =
-        getCandidates();
-
-    console.log(
-        "CANDIDATES:",
-        candidates
-    );
+            return;
+        }
 
 
-    // ------------------------------
-    // 플레이어 분석
-    // ------------------------------
+        // --------------------------------
+        // bestmove
+        // --------------------------------
 
-    if (analysisMode.current) {
+        if (!msg.startsWith("bestmove")) {
+            return;
+        }
 
-        playerCandidatesRef.current =
-            [...candidates];
+
+        console.log("BESTMOVE:", msg);
+
+
+        const candidates = getCandidates();
 
         console.log(
-            "♟ 플레이어 후보수 저장:",
-            playerCandidatesRef.current
-        );
-
-        clearCandidates();
-
-        analysisMode.current = false;
-
-        return;
-    }
-
-
-    // ------------------------------
-    // 봇 실제 수
-    // ------------------------------
-
-    const engineMove =
-        msg.split(" ")[1];
-
-    const result =
-        chooseMove(
-            currentBot,
-            engineMove
-        );
-
-    clearCandidates();
-
-    if (!result) return;
-
-    const botMove =
-        result.move;
-
-    const quality =
-        result.quality;
-
-
-    if (
-        !botMove ||
-        botMove === "(none)"
-    ) {
-        return;
-    }
-
-
-    const from =
-        botMove.substring(0, 2);
-
-    const to =
-        botMove.substring(2, 4);
-
-    const promotion =
-        botMove.length >= 5
-            ? botMove.substring(4, 5)
-            : "q";
-
-
-    const delay =
-        getThinkDelay(
-            currentBot
+            "CANDIDATES:",
+            candidates
         );
 
 
-    setTimeout(() => {
+        // --------------------------------
+        // 플레이어 수 분석용
+        // --------------------------------
 
-        playAnimatedMove(
-            from,
-            to,
-            promotion,
-            false,
-            quality
-        );
+        if (analysisMode.current) {
 
-    }, delay);
-}
+            playerCandidatesRef.current =
+                [...candidates];
 
+            console.log(
+                "♟ 플레이어 후보수 저장:",
+                playerCandidatesRef.current
+            );
+
+            clearCandidates();
+
+            analysisMode.current = false;
+
+            return;
+        }
+
+
+        // --------------------------------
         // 봇의 실제 수
-        if (!msg.startsWith("bestmove")) return;
+        // --------------------------------
 
-const engineMove = msg.split(" ")[1];
+        const engineMove =
+            msg.split(" ")[1];
 
-const result = chooseMove(
-    currentBot,
-    engineMove
-);
+
+        const result =
+            chooseMove(
+                currentBot,
+                engineMove
+            );
+
 
         clearCandidates();
 
-if(!result) return;
 
-const botMove = result.move;
-const quality = result.quality;
+        if (!result) {
+            return;
+        }
 
-if (!botMove || botMove === "(none)") {
-    clearCandidates();
-    return;
-}
 
-const from = botMove.substring(0,2);
-const to = botMove.substring(2,4);
-const promotion =
-    botMove.length >= 5
-        ? botMove.substring(4,5)
-        : "q";
+        const botMove =
+            result.move;
 
-        const delay = getThinkDelay(currentBot);
+        const quality =
+            result.quality;
+
+
+        if (
+            !botMove ||
+            botMove === "(none)"
+        ) {
+            return;
+        }
+
+
+        const from =
+            botMove.substring(0, 2);
+
+        const to =
+            botMove.substring(2, 4);
+
+        const promotion =
+            botMove.length >= 5
+                ? botMove.substring(4, 5)
+                : "q";
+
+
+        const delay =
+            getThinkDelay(currentBot);
+
 
         setTimeout(() => {
-playAnimatedMove(
-    from,
-    to,
-    promotion,
-    false,
-    quality
-);
+
+            playAnimatedMove(
+                from,
+                to,
+                promotion,
+                false,
+                quality
+            );
+
         }, delay);
-    });
+
+    };
+
+
+    engine.current.onMessage(handleEngineMessage);
+
+
+    return () => {
+
+        // StockfishEngine에 removeListener가 있다면 여기서 제거
+        // engine.current.offMessage?.(handleEngineMessage);
+
+    };
+
 }, [currentBot]);
     //--------------------------------
 // Player Move
