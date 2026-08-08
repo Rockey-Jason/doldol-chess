@@ -122,6 +122,8 @@ const [gameSummary, setGameSummary] = useState({
 
     mistake: 0,
 
+    miss: 0,
+
     blunder: 0,
 
     totalMoves: 0,
@@ -215,18 +217,41 @@ function getThinkDelay(bot){
 // Create PGN
 //--------------------------------
 
-function createPGN(result){
+function createPGN(result = "*") {
 
     const bot = botData[currentBot];
 
-const headers = createGameHeaders(result);
+    const now = new Date();
 
-game.header(headers);
+    const date =
+        now.toISOString()
+            .slice(0, 10)
+            .replaceAll("-", ".");
 
-    return game.pgn({
+    const botName = bot?.name || currentBot;
+    const difficulty = `Lv.${bot?.level ?? 1}`;
+
+    game.header(
+        "Event", "Doldol Chess",
+        "Site", "Doldol Site",
+        "Date", date,
+        "Round", "1",
+        "White", "Player",
+        "Black", botName,
+        "Result", result,
+        "Difficulty", difficulty,
+        "PlayerRating", String(rating),
+        "BotRating", String(botRating[currentBot] ?? 0)
+    );
+
+    const pgn = game.pgn({
         newline: "\n"
     });
 
+    console.log("===== 최종 PGN =====");
+    console.log(pgn);
+
+    return pgn;
 }
 
 //--------------------------------
@@ -1253,12 +1278,13 @@ moveStatsRef.current = {
 
     good: 0,
 
+    miss: 0,
+
     inaccuracy: 0,
 
     mistake: 0,
 
     blunder: 0
-
 };
 
     say("starting");
